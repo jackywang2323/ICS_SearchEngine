@@ -1,0 +1,4 @@
+beautifulsoup4>=4.9.0
+nltk>=3.6
+flask>=2.0.0
+

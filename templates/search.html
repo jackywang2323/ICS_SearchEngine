@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICS Search</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background: #fff;
+            min-height: 100vh;
+        }
+        .header {
+            background: #f8f9fa;
+            border-bottom: 1px solid #dadce0;
+            padding: 16px 24px;
+        }
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+        .logo {
+            font-size: 20px;
+            font-weight: 500;
+            color: #1a73e8;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .search-container {
+            flex: 1;
+            max-width: 690px;
+        }
+        .search-box {
+            display: flex;
+            border: 1px solid #dfe1e5;
+            border-radius: 24px;
+            padding: 8px 16px;
+            background: #fff;
+            transition: box-shadow 0.2s;
+        }
+        .search-box:hover, .search-box:focus-within {
+            box-shadow: 0 1px 6px rgba(32,33,36,.28);
+            border-color: rgba(223,225,229,0);
+        }
+        .search-box input {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            padding: 4px 8px;
+        }
+        .search-box button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 8px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-left: 8px;
+            white-space: nowrap;
+        }
+        .search-box button:hover {
+            background: #1765cc;
+        }
+        .main-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px 24px;
+        }
+        .stats {
+            color: #70757a;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .results {
+            min-height: 400px;
+        }
+        .result-item {
+            margin-bottom: 32px;
+        }
+        .result-url {
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            color: #202124;
+            margin-bottom: 4px;
+        }
+        .result-url-text {
+            color: #5f6368;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .result-title {
+            margin-bottom: 4px;
+        }
+        .result-title a {
+            color: #1a0dab;
+            font-size: 20px;
+            text-decoration: none;
+            line-height: 1.3;
+            font-weight: 400;
+        }
+        .result-title a:hover {
+            text-decoration: underline;
+        }
+        .result-title a:visited {
+            color: #681da8;
+        }
+        .result-snippet {
+            color: #4d5156;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-top: 4px;
+        }
+        .result-meta {
+            display: flex;
+            gap: 8px;
+            margin-top: 4px;
+            font-size: 12px;
+            color: #70757a;
+        }
+        .loading, .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #70757a;
+            font-size: 14px;
+        }
+        .no-results {
+            padding: 120px 20px;
+        }
+        .welcome-screen {
+            text-align: center;
+            padding: 100px 20px;
+        }
+        .welcome-screen h1 {
+            font-size: 92px;
+            color: #1a73e8;
+            font-weight: 400;
+            margin-bottom: 30px;
+            letter-spacing: -2px;
+        }
+        .welcome-screen .subtitle {
+            font-size: 16px;
+            color: #5f6368;
+            margin-bottom: 40px;
+        }
+        .welcome-search {
+            max-width: 584px;
+            margin: 0 auto;
+        }
+        .welcome-search .search-box {
+            padding: 12px 20px;
+            box-shadow: 0 1px 6px rgba(32,33,36,.28);
+        }
+        .welcome-search input {
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <a href="/" class="logo">ICS Search</a>
+            <div class="search-container">
+                <div class="search-box">
+                    <input type="text" id="queryInput" placeholder="Search ICS pages..." autofocus>
+                    <button onclick="performSearch()">Search</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="stats" id="stats"></div>
+        <div class="results" id="results">
+            <div class="welcome-screen">
+                <h1>ICS</h1>
+                <div class="subtitle">Search Engine for UCI Information & Computer Sciences</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const queryInput = document.getElementById('queryInput');
+        const resultsDiv = document.getElementById('results');
+        const statsDiv = document.getElementById('stats');
+        
+        queryInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+        
+        function performSearch() {
+            const query = queryInput.value.trim();
+            if (!query) {
+                return;
+            }
+            
+            resultsDiv.innerHTML = '<div class="loading">Searching...</div>';
+            statsDiv.textContent = '';
+            
+            const startTime = Date.now();
+            fetch(`/search?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    displayResults(data);
+                })
+                .catch(error => {
+                    resultsDiv.innerHTML = '<div class="no-results">Error: ' + error + '</div>';
+                });
+        }
+        
+        function displayResults(data) {
+            if (data.results.length === 0) {
+                resultsDiv.innerHTML = '<div class="no-results">No results found for "' + data.query + '"</div>';
+                statsDiv.textContent = '';
+                return;
+            }
+            
+            const time = data.time < 1 ? '< 1' : data.time.toFixed(0);
+            statsDiv.textContent = `About ${data.count} results (${time} ms)`;
+            
+            let html = '';
+            data.results.forEach((result, index) => {
+                const url = new URL(result.url);
+                const domain = url.hostname;
+                const displayUrl = url.hostname + url.pathname;
+                const title = getPageTitle(result.url);
+                
+                html += `
+                    <div class="result-item">
+                        <div class="result-url">
+                            <span class="result-url-text">${displayUrl.length > 80 ? displayUrl.substring(0, 80) + '...' : displayUrl}</span>
+                        </div>
+                        <div class="result-title">
+                            <a href="${result.url}" target="_blank">${title}</a>
+                        </div>
+                        <div class="result-snippet">
+                            ${getSnippet(result.url)}
+                        </div>
+                        <div class="result-meta">
+                            <span>Relevance: ${result.score.toFixed(2)}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        function getPageTitle(url) {
+            try {
+                const urlObj = new URL(url);
+                const path = urlObj.pathname;
+                const segments = path.split('/').filter(s => s);
+                
+                if (segments.length === 0) {
+                    return urlObj.hostname.replace('www.', '');
+                }
+                
+                let title = '';
+                for (let i = segments.length - 1; i >= 0; i--) {
+                    const segment = segments[i];
+                    const cleaned = segment.replace(/[-_]/g, ' ')
+                        .replace(/\.(html|php|htm|asp|aspx)$/i, '')
+                        .trim();
+                    
+                    if (!cleaned) continue;
+                    
+                    const isOnlyNumbers = /^\d+$/.test(cleaned);
+                    const isDatePattern = /^\d{4}\/\d{1,2}$/.test(segment);
+                    
+                    if (!isOnlyNumbers && !isDatePattern && cleaned.length > 1) {
+                        title = cleaned;
+                        break;
+                    }
+                }
+                
+                if (!title || /^\d+$/.test(title)) {
+                    for (let i = segments.length - 2; i >= 0; i--) {
+                        const segment = segments[i];
+                        const cleaned = segment.replace(/[-_]/g, ' ')
+                            .replace(/\.(html|php|htm|asp|aspx)$/i, '')
+                            .trim();
+                        
+                        if (cleaned && !/^\d+$/.test(cleaned) && cleaned.length > 1) {
+                            title = cleaned;
+                            break;
+                        }
+                    }
+                }
+                
+                if (!title || /^\d+$/.test(title)) {
+                    const hostname = urlObj.hostname.replace('www.', '');
+                    const domainParts = hostname.split('.');
+                    if (domainParts.length >= 2) {
+                        title = domainParts[domainParts.length - 2].charAt(0).toUpperCase() + 
+                                domainParts[domainParts.length - 2].slice(1) + ' - ' + 
+                                domainParts[domainParts.length - 1].toUpperCase();
+                    } else {
+                        title = hostname;
+                    }
+                } else {
+                    title = title.split(' ')
+                        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                        .join(' ');
+                }
+                
+                return title || urlObj.hostname.replace('www.', '');
+            } catch (e) {
+                return url;
+            }
+        }
+        
+        function getSnippet(url) {
+            const hostname = new URL(url).hostname;
+            if (hostname.includes('informatics')) {
+                return 'Explore the Donald Bren School of Information and Computer Sciences programs, research, and faculty.';
+            } else if (hostname.includes('cs.uci.edu')) {
+                return 'Department of Computer Science at UC Irvine - Courses, research, and academic programs.';
+            } else if (hostname.includes('ics.uci.edu')) {
+                return 'Information and Computer Sciences at UC Irvine.';
+            }
+            return 'UC Irvine ICS - Information and Computer Sciences resources and information.';
+        }
+    </script>
+</body>
+</html>
+
